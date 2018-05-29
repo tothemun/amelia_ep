@@ -9,7 +9,7 @@ FFT fft;
 // For example, for bass, we take only the first 4% of the total spectrum
 float specLow = 0.03; // 3%
 float specMid = 0.125;  // 12.5%
-float specHi = 0.20;   // 20%
+float specHi = 0.25;   // 20%
 
 // This leaves 64% of the possible spectrum that will not be used.
 // Humans can't hear these sounds anyway
@@ -50,30 +50,28 @@ void setup() {
   // Create our walls
   walls = new Wall[numWalls];
 
-  //Créer tous les objets
-  //Créer les objets cubes
   for (int i = 0; i < nbCubes; i++) {
    cubes[i] = new Cube(); 
   }
   
   // Left walls
   for (int i = 0; i < numWalls; i+=4) {
-   walls[i] = new Mur(0, height/2, 10, height); 
+   walls[i] = new Wall(0, height/2, 10, height); 
   }
   
   // Right walls
   for (int i = 1; i < numWalls; i+=4) {
-   walls[i] = new Mur(width, height/2, 10, height); 
+   walls[i] = new Wall(width, height/2, 10, height); 
   }
   
   // Bottom walls
   for (int i = 2; i < numWalls; i+=4) {
-   walls[i] = new Mur(width/2, height, width, 10); 
+   walls[i] = new Wall(width/2, height, width, 10); 
   }
   
   // Top walls
   for (int i = 3; i < numWalls; i+=4) {
-   walls[i] = new Mur(width/2, 0, width, 10); 
+   walls[i] = new Wall(width/2, 0, width, 10); 
   }
   
   background(0);
