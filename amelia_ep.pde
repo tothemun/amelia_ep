@@ -30,26 +30,25 @@ int nbCubes;
 Cube[] cubes;
 
 // The lines on the sides
-int nbMurs = 500;
-Mur[] murs;
+int numWalls = 500;
+Wall[] walls;
  
 void setup() {
   fullScreen(P3D);
  
   minim = new Minim(this);
  
-  //Charger la chanson
+  // Load the song
+  // TODO: 05.28.2018 - Add toggle to pull live from DJ deck
   song = minim.loadFile("song.mp3");
-  
-  //Créer l'objet FFT pour analyser la chanson
   fft = new FFT(song.bufferSize(), song.sampleRate());
   
-  //Un cube par bande de fréquence
+  // One cube per frequency band
   nbCubes = (int)(fft.specSize()*specHi);
   cubes = new Cube[nbCubes];
   
-  //Autant de murs qu'on veux
-  murs = new Mur[nbMurs];
+  // Create our walls
+  walls = new Wall[numWalls];
 
   //Créer tous les objets
   //Créer les objets cubes
@@ -57,67 +56,59 @@ void setup() {
    cubes[i] = new Cube(); 
   }
   
-  //Créer les objets murs
-  //Murs gauches
-  for (int i = 0; i < nbMurs; i+=4) {
-   murs[i] = new Mur(0, height/2, 10, height); 
+  // Left walls
+  for (int i = 0; i < numWalls; i+=4) {
+   walls[i] = new Mur(0, height/2, 10, height); 
   }
   
-  //Murs droits
-  for (int i = 1; i < nbMurs; i+=4) {
-   murs[i] = new Mur(width, height/2, 10, height); 
+  // Right walls
+  for (int i = 1; i < numWalls; i+=4) {
+   walls[i] = new Mur(width, height/2, 10, height); 
   }
   
-  //Murs bas
-  for (int i = 2; i < nbMurs; i+=4) {
-   murs[i] = new Mur(width/2, height, width, 10); 
+  // Bottom walls
+  for (int i = 2; i < numWalls; i+=4) {
+   walls[i] = new Mur(width/2, height, width, 10); 
   }
   
-  //Murs haut
-  for (int i = 3; i < nbMurs; i+=4) {
-   murs[i] = new Mur(width/2, 0, width, 10); 
+  // Top walls
+  for (int i = 3; i < numWalls; i+=4) {
+   walls[i] = new Mur(width/2, 0, width, 10); 
   }
   
-  //Fond noir
   background(0);
-  
-  //Commencer la chanson
   song.play(0);
 }
  
-void draw()
-{
-  //Faire avancer la chanson. On draw() pour chaque "frame" de la chanson...
+void draw() {
+  // Advance the song.
   fft.forward(song.mix);
   
-  //Calcul des "scores" (puissance) pour trois catégories de son
-  //D'abord, sauvgarder les anciennes valeurs
+  // Calculate the "scores" (power) for three categories of sound
+  // First save the old values
   oldScoreLow = scoreLow;
   oldScoreMid = scoreMid;
   oldScoreHi = scoreHi;
   
-  //Réinitialiser les valeurs
+  // Reset the values
   scoreLow = 0;
   scoreMid = 0;
   scoreHi = 0;
  
-  //Calculer les nouveaux "scores"
-  for(int i = 0; i < fft.specSize()*specLow; i++)
-  {
+  // Calculate the new scores
+  for (int i = 0; i < fft.specSize()*specLow; i++) {
     scoreLow += fft.getBand(i);
   }
   
-  for(int i = (int)(fft.specSize()*specLow); i < fft.specSize()*specMid; i++)
-  {
+  for (int i = (int)(fft.specSize()*specLow); i < fft.specSize()*specMid; i++) {
     scoreMid += fft.getBand(i);
   }
   
-  for(int i = (int)(fft.specSize()*specMid); i < fft.specSize()*specHi; i++)
-  {
+  for (int i = (int)(fft.specSize()*specMid); i < fft.specSize()*specHi; i++) {
     scoreHi += fft.getBand(i);
   }
   
-  //Faire ralentir la descente.
+  // Ease the transition
   if (oldScoreLow > scoreLow) {
     scoreLow = oldScoreLow - scoreDecreaseRate;
   }
@@ -130,136 +121,123 @@ void draw()
     scoreHi = oldScoreHi - scoreDecreaseRate;
   }
   
-  //Volume pour toutes les fréquences à ce moment, avec les sons plus haut plus importants.
-  //Cela permet à l'animation d'aller plus vite pour les sons plus aigus, qu'on remarque plus
+  // Volume for all frequencies at this time, with the highest sounds higher.
+  // This allows the animation to go faster for the higher pitched sounds, which is more noticeable
   float scoreGlobal = 0.66*scoreLow + 0.8*scoreMid + 1*scoreHi;
   
-  //Couleur subtile de background
+  // Tint the background
   background(scoreLow/100, scoreMid/100, scoreHi/100);
    
-  //Cube pour chaque bande de fréquence
-  for(int i = 0; i < nbCubes; i++)
-  {
-    //Valeur de la bande de fréquence
+  // Loop through each band cube
+  for (int i = 0; i < nbCubes; i++) {
+    // Value of the frequency band
     float bandValue = fft.getBand(i);
     
-    //La couleur est représentée ainsi: rouge pour les basses, vert pour les sons moyens et bleu pour les hautes. 
-    //L'opacité est déterminée par le volume de la bande et le volume global.
+    // The color is represented as: red for bass, green for medium sounds and blue for high.
+    // The opacity is determined by the volume of the band and the overall volume.
     cubes[i].display(scoreLow, scoreMid, scoreHi, bandValue, scoreGlobal);
   }
   
-  //Murs lignes, ici il faut garder la valeur de la bande précédent et la suivante pour les connecter ensemble
+  // Walls lines, here we must keep the value of the previous band and the next to connect them together
   float previousBandValue = fft.getBand(0);
   
-  //Distance entre chaque point de ligne, négatif car sur la dimension z
+  // Distance between each line point
   float dist = -25;
   
-  //Multiplier la hauteur par cette constante
+  // Multiply the height by this constant
   float heightMult = 2;
   
-  //Pour chaque bande
-  for(int i = 1; i < fft.specSize(); i++)
-  {
-    //Valeur de la bande de fréquence, on multiplie les bandes plus loins pour qu'elles soient plus visibles.
+  // For each band
+  for (int i = 1; i < fft.specSize(); i++) {
+    // Value of the frequency band, we multiply the distant bands to make them more visible.
     float bandValue = fft.getBand(i)*(1 + (i/50));
     
-    //Selection de la couleur en fonction des forces des différents types de sons
+    // Selection of the color according to the forces of the different types of sounds
     stroke(100+scoreLow, 100+scoreMid, 100+scoreHi, 255-i);
     strokeWeight(1 + (scoreGlobal/100));
     
-    //ligne inferieure gauche
+    // lower left line
     line(0, height-(previousBandValue*heightMult), dist*(i-1), 0, height-(bandValue*heightMult), dist*i);
     line((previousBandValue*heightMult), height, dist*(i-1), (bandValue*heightMult), height, dist*i);
     line(0, height-(previousBandValue*heightMult), dist*(i-1), (bandValue*heightMult), height, dist*i);
     
-    //ligne superieure gauche
+    // upper left line
     line(0, (previousBandValue*heightMult), dist*(i-1), 0, (bandValue*heightMult), dist*i);
     line((previousBandValue*heightMult), 0, dist*(i-1), (bandValue*heightMult), 0, dist*i);
     line(0, (previousBandValue*heightMult), dist*(i-1), (bandValue*heightMult), 0, dist*i);
     
-    //ligne inferieure droite
+    // lower right line
     line(width, height-(previousBandValue*heightMult), dist*(i-1), width, height-(bandValue*heightMult), dist*i);
     line(width-(previousBandValue*heightMult), height, dist*(i-1), width-(bandValue*heightMult), height, dist*i);
     line(width, height-(previousBandValue*heightMult), dist*(i-1), width-(bandValue*heightMult), height, dist*i);
     
-    //ligne superieure droite
+    // upper right line
     line(width, (previousBandValue*heightMult), dist*(i-1), width, (bandValue*heightMult), dist*i);
     line(width-(previousBandValue*heightMult), 0, dist*(i-1), width-(bandValue*heightMult), 0, dist*i);
     line(width, (previousBandValue*heightMult), dist*(i-1), width-(bandValue*heightMult), 0, dist*i);
     
-    //Sauvegarder la valeur pour le prochain tour de boucle
+    //Save the value for the next loop
     previousBandValue = bandValue;
   }
   
-  //Murs rectangles
-  for(int i = 0; i < nbMurs; i++)
-  {
-    //On assigne à chaque mur une bande, et on lui envoie sa force.
+  // Wall rectangles
+  for (int i = 0; i < numWalls; i++) {
+    // Each wall is assigned a band, and its strength is sent to it.
     float intensity = fft.getBand(i%((int)(fft.specSize()*specHi)));
-    murs[i].display(scoreLow, scoreMid, scoreHi, intensity, scoreGlobal);
+    walls[i].display(scoreLow, scoreMid, scoreHi, intensity, scoreGlobal);
   }
 }
 
-//Classe pour les cubes qui flottent dans l'espace
 class Cube {
-  //Position Z de "spawn" et position Z maximale
   float startingZ = -10000;
   float maxZ = 1000;
   
-  //Valeurs de positions
   float x, y, z;
   float rotX, rotY, rotZ;
   float sumRotX, sumRotY, sumRotZ;
   
-  //Constructeur
   Cube() {
-    //Faire apparaitre le cube à un endroit aléatoire
+    // Make the cube appear in a random place
     x = random(0, width);
     y = random(0, height);
     z = random(startingZ, maxZ);
     
-    //Donner au cube une rotation aléatoire
+    // Give the cube a random rotation
     rotX = random(0, 1);
     rotY = random(0, 1);
     rotZ = random(0, 1);
   }
   
   void display(float scoreLow, float scoreMid, float scoreHi, float intensity, float scoreGlobal) {
-    //Sélection de la couleur, opacité déterminée par l'intensité (volume de la bande)
+    // Choose the color, opacity determined by the intensity (volume of the band)
     color displayColor = color(scoreLow*0.67, scoreMid*0.67, scoreHi*0.67, intensity*5);
     fill(displayColor, 255);
     
-    //Couleur lignes, elles disparaissent avec l'intensité individuelle du cube
+    // Color lines, they disappear with the individual intensity of the cube
     color strokeColor = color(255, 150-(20*intensity));
     stroke(strokeColor);
     strokeWeight(1 + (scoreGlobal/300));
     
-    //Création d'une matrice de transformation pour effectuer des rotations, agrandissements
     pushMatrix();
+      translate(x, y, z);
     
-    //Déplacement
-    translate(x, y, z);
+      // Calculate the rotation according to the intensity for the cube
+      sumRotX += intensity*(rotX/1000);
+      sumRotY += intensity*(rotY/1000);
+      sumRotZ += intensity*(rotZ/1000);
     
-    //Calcul de la rotation en fonction de l'intensité pour le cube
-    sumRotX += intensity*(rotX/1000);
-    sumRotY += intensity*(rotY/1000);
-    sumRotZ += intensity*(rotZ/1000);
+      rotateX(sumRotX);
+      rotateY(sumRotY);
+      rotateZ(sumRotZ);
     
-    //Application de la rotation
-    rotateX(sumRotX);
-    rotateY(sumRotY);
-    rotateZ(sumRotZ);
+      // Creation of the box, variable size according to the intensity for the cube
+      box(100+(intensity/2));
     
-    //Création de la boite, taille variable en fonction de l'intensité pour le cube
-    box(100+(intensity/2));
-    
-    //Application de la matrice
     popMatrix();
     
-    //Déplacement Z
     z+= (1+(intensity/5)+(pow((scoreGlobal/150), 2)));
     
-    //Replacer la boite à l'arrière lorsqu'elle n'est plus visible
+    // Replace the box at the back when it is no longer visible
     if (z >= maxZ) {
       x = random(0, width);
       y = random(0, height);
@@ -269,71 +247,52 @@ class Cube {
 }
 
 
-//Classe pour afficher les lignes sur les cotés
-class Mur {
-  //Position minimale et maximale Z
+class Wall {
   float startingZ = -10000;
   float maxZ = 50;
   
-  //Valeurs de position
   float x, y, z;
   float sizeX, sizeY;
   
-  //Constructeur
-  Mur(float x, float y, float sizeX, float sizeY) {
-    //Faire apparaitre la ligne à l'endroit spécifié
+  Wall(float x, float y, float sizeX, float sizeY) {
     this.x = x;
     this.y = y;
-    //Profondeur aléatoire
     this.z = random(startingZ, maxZ);  
     
-    //On détermine la taille car les murs au planchers ont une taille différente que ceux sur les côtés
+    // We determine the size because the walls on the floors have a different size than those on the sides
     this.sizeX = sizeX;
     this.sizeY = sizeY;
   }
   
-  //Fonction d'affichage
   void display(float scoreLow, float scoreMid, float scoreHi, float intensity, float scoreGlobal) {
-    //Couleur déterminée par les sons bas, moyens et élevé
-    //Opacité déterminé par le volume global
-    color displayColor = color(scoreLow*0.67, scoreMid*0.67, scoreHi*0.67, scoreGlobal);
+    // Color determined by low, medium and high sounds
+    // Opacity determined by the overall volume
+    color displayColor = color(scoreLow * 0.67, scoreMid * 0.67, scoreHi * 0.67, scoreGlobal);
     
-    //Faire disparaitre les lignes au loin pour donner une illusion de brouillard
+    // Make lines disappear in the distance to give an illusion of fog
     fill(displayColor, ((scoreGlobal-5)/1000)*(255+(z/25)));
     noStroke();
     
-    //Première bande, celle qui bouge en fonction de la force
-    //Matrice de transformation
+    // First band, the one that moves according to the force
     pushMatrix();
+      translate(x, y, z);
     
-    //Déplacement
-    translate(x, y, z);
+      if (intensity > 100) intensity = 100;
+      scale(sizeX*(intensity/100), sizeY*(intensity/100), 20);
     
-    //Agrandissement
-    if (intensity > 100) intensity = 100;
-    scale(sizeX*(intensity/100), sizeY*(intensity/100), 20);
-    
-    //Création de la "boite"
-    box(1);
+      box(1);
     popMatrix();
     
-    //Deuxième bande, celle qui est toujours de la même taille
+    // Second band, still the same size
     displayColor = color(scoreLow*0.5, scoreMid*0.5, scoreHi*0.5, scoreGlobal);
     fill(displayColor, (scoreGlobal/5000)*(255+(z/25)));
-    //Matrice de transformation
+
     pushMatrix();
-    
-    //Déplacement
     translate(x, y, z);
-    
-    //Agrandissement
-    scale(sizeX, sizeY, 10);
-    
-    //Création de la "boite"
-    box(1);
+      scale(sizeX, sizeY, 10);
+      box(1);
     popMatrix();
     
-    //Déplacement Z
     z+= (pow((scoreGlobal/150), 2));
     if (z >= maxZ) {
       z = startingZ;  
