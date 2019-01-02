@@ -1,6 +1,6 @@
 # amelia_ep
 
-![Screenshot](screen.png)
+![Screenshot](screenshot.png)
 
 Forked from [samuellapointe's Processing Cubes sketch.](https://github.com/samuellapointe/ProcessingCubes)
 
